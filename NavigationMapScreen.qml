@@ -1,10 +1,12 @@
 import QtQuick 2.9
-import QtLocation
+import QtLocation 6.10
 import QtQml 2.3
 import QtQuick.Controls 2.5
 import QtQuick.Layouts 1.3
 import QtPositioning
 import Style 1.0
+import "Components"
+import "qrc:/LayoutManager.js" as Responsive
 
 Page {
     id: pageMap
@@ -13,60 +15,125 @@ Page {
     property var demoStartLoc: QtPositioning.coordinate(39.9042, 116.4074)
     property var demoDestinationLoc: QtPositioning.coordinate(40.4319, 116.5704)
     property var destinationLoc: QtPositioning.coordinate(40.4319, 116.5704)
-    property var routePath: []
-    property var routeSteps: []
-    property var routeOptions: []
-    property var searchResults: []
-    property var localPlaces: [
-        { name: "北京，中国", keywords: "beijing 北京", latitude: 39.9042, longitude: 116.4074 },
-        { name: "上海，中国", keywords: "shanghai 上海", latitude: 31.2304, longitude: 121.4737 },
-        { name: "深圳，中国", keywords: "shenzhen 深圳", latitude: 22.5431, longitude: 114.0579 },
-        { name: "广州，中国", keywords: "guangzhou 广州", latitude: 23.1291, longitude: 113.2644 },
-        { name: "杭州，中国", keywords: "hangzhou 杭州", latitude: 30.2741, longitude: 120.1551 },
-        { name: "成都，中国", keywords: "chengdu 成都", latitude: 30.5728, longitude: 104.0668 },
-        { name: "西安，中国", keywords: "xian xi'an 西安", latitude: 34.3416, longitude: 108.9398 },
-        { name: "武汉，中国", keywords: "wuhan 武汉", latitude: 30.5928, longitude: 114.3055 },
-        { name: "天安门广场，北京，中国", keywords: "tiananmen 天安门 北京", latitude: 39.9087, longitude: 116.3975 },
-        { name: "八达岭长城，北京，中国", keywords: "great wall changcheng 长城 北京", latitude: 40.4319, longitude: 116.5704 },
-        { name: "北京南站，北京，中国", keywords: "beijing south railway station 北京南站", latitude: 39.8652, longitude: 116.3785 },
-        { name: "首都国际机场，北京，中国", keywords: "beijing capital airport 首都机场", latitude: 40.0799, longitude: 116.6031 },
-        { name: "德里国家首都辖区，印度", keywords: "delhi ncr 印度 德里", latitude: 28.4595, longitude: 77.0266 }
-    ]
-    property int activeRouteIndex: 0
-    property int routePlaybackStep: 1
-    property int routeCursorIndex: 0
-    property string routeStatus: "idle"
-    property string routeHint: "搜索目的地，选择路线后开始驾驶"
+    property alias routePath: routeState.routePath
+    property alias drivePath: routeState.drivePath
+    property alias routeDistanceCache: routeState.routeDistanceCache
+    property alias routeRenderPath: routeState.routeRenderPath
+    property alias routeInteractionPath: routeState.routeInteractionPath
+    property alias routeSteps: routeState.routeSteps
+    property alias routeOptions: routeState.routeOptions
+    property alias searchResults: searchState.searchResults
+    property alias localPlaces: searchState.localPlaces
+    property alias quickPlaces: searchState.quickPlaces
+    property alias favoritePlaces: searchState.favoritePlaces
+    property alias historyPlaces: searchState.historyPlaces
+    property alias activeRouteIndex: routeState.activeRouteIndex
+    property alias routePlaybackStep: playbackState.routePlaybackStep
+    property alias routeCursorIndex: routeState.routeCursorIndex
+    property alias routeSegmentIndex: routeState.routeSegmentIndex
+    property alias routeProgressDistanceMeters: playbackState.routeProgressDistanceMeters
+    property alias routeTotalDistanceMeters: routeState.routeTotalDistanceMeters
+    property alias smoothedMapBearing: cameraController.smoothedMapBearing
+    property alias cameraRigLat: cameraController.cameraRigLat
+    property alias cameraRigLng: cameraController.cameraRigLng
+    property alias cameraLeadDistanceMeters: cameraController.cameraLeadDistanceMeters
+    property alias cameraFollowEase: cameraController.cameraFollowEase
+    property alias cameraBearingEase: cameraController.cameraBearingEase
+    property alias cameraTargetCoordinate: cameraController.cameraTargetCoordinate
+    property alias routeStatus: routeState.routeStatus
+    property alias routeHint: routeState.routeHint
+    property alias searchHint: searchState.searchHint
     property string destinationName: "八达岭长城，北京，中国"
-    property string routePreference: "fastest"
-    property string cameraMode: "overview"
+    property alias routePreference: routeState.routePreference
+    property alias cameraMode: cameraController.mode
     property string liveLocationStatus: "手动定位 北京"
-    property int followZoomLevel: 16
+    property alias followZoomLevel: cameraController.followZoomLevel
+    property alias followTiltLevel: cameraController.followTiltLevel
+    property alias inspectTiltLevel: cameraController.inspectTiltLevel
+    property alias freeMinZoomLevel: cameraController.freeMinZoomLevel
+    property alias freeMaxZoomLevel: cameraController.freeMaxZoomLevel
+    property alias pendingZoomLevel: cameraController.pendingZoomLevel
+    property alias wheelZoomAnchorPoint: cameraController.wheelZoomAnchorPoint
+    property alias wheelZoomAnchorCoordinate: cameraController.wheelZoomAnchorCoordinate
     property bool isRoutingStart: false
     property bool runMapAnimation: false
     property bool enableGradient: true
     property bool showDebugControls: false
-    property bool showSearchResults: false
-    property bool routeRequestInFlight: false
+    property alias showSearchResults: searchState.showSearchResults
+    property alias routeRequestInFlight: routeState.routeRequestInFlight
+    readonly property var searchStateObject: searchState
+    readonly property var tileSettingsObject: mapTileSettings
+    readonly property var mapDataServiceObject: mapDataService
+    property var navigationController: navCtrl
+    readonly property bool navigationActive: navCtrl && navCtrl.isNavigating
     property bool useDevicePosition: false
     property bool mapDragActive: false
+    property alias mapViewportInteracting: cameraController.viewportInteracting
+    property alias visualPlaybackTick: playbackState.visualPlaybackTick
     property point mapDragLastPoint: Qt.point(0, 0)
     property bool navPanelVisible: true
     property real navPanelScale: 1.0
+    property bool navPanelCompactMode: true
+    readonly property var adaptive: new Responsive.AdaptiveLayoutManager(width, height, width, height)
+    readonly property var mapObject: mapCanvas
+    readonly property var currentLocationMarker: mapCanvas.currentLocationMarkerItem
+    readonly property var destinationMarker: mapCanvas.destinationMarkerItem
+    readonly property var startMarker: mapCanvas.startMarkerItem
     padding: 0
 
+    MapRouteState {
+        id: routeState
+    }
+
+    MapSearchState {
+        id: searchState
+    }
+
+    RoutePlaybackState {
+        id: playbackState
+        cameraRigLat: pageMap.currentLoc.latitude
+        cameraRigLng: pageMap.currentLoc.longitude
+        cameraTargetCoordinate: pageMap.currentLoc
+        wheelZoomAnchorCoordinate: pageMap.currentLoc
+    }
+
+    MapTileSourceState {
+        id: tileSourceState
+        tileSettings: mapTileSettings
+        darkTheme: Style.isDark
+    }
+
+    MapCameraController {
+        id: cameraController
+        pageMap: pageMap
+        mapObject: pageMap.mapObject
+        vehicleMarker: pageMap.currentLocationMarker
+        routePath: pageMap.routePath
+        currentLoc: pageMap.currentLoc
+        routeActive: pageMap.routePath.length > 0
+        navigationActive: pageMap.navigationActive
+    }
+
     function resetRouteState(keepMarkers) {
-        animationTimer.stop()
-        simulateDrive.stop()
+        // 每次重新规划前先清理动画和旧路线，避免旧状态影响新路线显示。
+        playbackController.stopAll()
+        cameraController.stopRig()
         isRoutingStart = false
         currentLocationMarker.coordinate = currentLoc
-        simulateDrive.index = 0
-        simulateDrive.path = []
         routeCursorIndex = 0
         routePath = []
+        drivePath = []
+        routeDistanceCache = []
+        routeRenderPath = []
+        routeInteractionPath = []
         routeSteps = []
         routeOptions = []
         activeRouteIndex = 0
+        routeSegmentIndex = 0
+        routeProgressDistanceMeters = 0
+        routeTotalDistanceMeters = 0
+        cameraTargetCoordinate = currentLoc
+        visualPlaybackTick = 0
         routeStatus = "idle"
 
         if (!keepMarkers) {
@@ -77,17 +144,22 @@ Page {
     }
 
     function adjustNavPanelScale(delta) {
-        navPanelScale = Math.max(0.82, Math.min(1.18, navPanelScale + delta))
+        navPanelScale = Math.max(0.92, Math.min(1.08, navPanelScale + delta))
+    }
+
+    function syncCompactMode() {
+        navPanelCompactMode = true
     }
 
     function selectCustomMapType() {
-        if (!map.supportedMapTypes.length)
+        if (!mapObject || !mapObject.supportedMapTypes.length)
             return
 
-        map.activeMapType = map.supportedMapTypes[map.supportedMapTypes.length - 1]
+        mapObject.activeMapType = mapObject.supportedMapTypes[mapObject.supportedMapTypes.length - 1]
     }
 
     function startAnimation() {
+        syncCompactMode()
         requestRoute()
     }
 
@@ -100,14 +172,31 @@ Page {
         destinationLoc = demoDestinationLoc
         destinationName = "八达岭长城，北京，中国"
         liveLocationStatus = "手动定位 北京"
-        searchBox.text = ""
+        navPanel.searchText = ""
+        searchHint = ""
         requestRoute()
+    }
+
+    onWidthChanged: {
+        syncCompactMode()
+        adaptive.updateWindowWidth(width)
+    }
+
+    onHeightChanged: {
+        syncCompactMode()
+        adaptive.updateWindowHeight(height)
     }
 
     function setDestinationFromCoordinate(coordinate, label) {
         destinationLoc = coordinate
         destinationName = label && label.length ? localizePlaceName(label) : "选点 " + coordinateLabel(coordinate)
+        searchState.recordHistory({
+            name: destinationName,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude
+        })
         routeHint = "目的地已更新"
+        searchHint = ""
         showSearchResults = false
         requestReverseDestinationName(coordinate)
         requestRoute()
@@ -119,6 +208,7 @@ Page {
         currentLocationMarker.visible = true
         liveLocationStatus = "手动定位 " + coordinateLabel(coordinate)
         routeHint = "起点已更新"
+        searchHint = ""
         requestRoute()
     }
 
@@ -130,46 +220,30 @@ Page {
         currentLocationMarker.coordinate = coordinate
         currentLocationMarker.visible = true
         liveLocationStatus = sourceName + " " + coordinateLabel(coordinate)
-
-        if (cameraMode === "follow")
-            map.center = coordinate
     }
 
     function setCameraMode(mode) {
-        cameraMode = mode
-        if (mode === "overview") {
-            fitRouteInView()
-        } else if (mode === "follow") {
-            map.center = currentLocationMarker.visible ? currentLocationMarker.coordinate : currentLoc
-            map.zoomLevel = followZoomLevel
-            map.tilt = 58
-        }
+        cameraController.setMode(mode)
+    }
+
+    function beginViewportInteraction() {
+        cameraController.beginViewportInteraction()
+    }
+
+    function endViewportInteraction() {
+        cameraController.endViewportInteraction()
+    }
+
+    function queueWheelZoom(screenPoint, zoomDelta) {
+        cameraController.queueWheelZoom(screenPoint, zoomDelta)
     }
 
     function routeDistanceMiles() {
-        if (!routePath.length)
-            return 0
-
-        var meters = 0
-        for (var index = 1; index < routePath.length; index++)
-            meters += routePath[index - 1].distanceTo(routePath[index])
-        return meters / 1609.344
+        return routeState.routeDistanceMiles(routePath)
     }
 
     function buildDemoRoute() {
-        var points = []
-        var pointCount = 180
-
-        for (var index = 0; index <= pointCount; index++) {
-            var progress = index / pointCount
-            var latitude = currentLoc.latitude + (destinationLoc.latitude - currentLoc.latitude) * progress
-            var longitude = currentLoc.longitude + (destinationLoc.longitude - currentLoc.longitude) * progress
-            var wave = Math.sin(progress * Math.PI * 1.6) * 0.0026
-
-            points.push(QtPositioning.coordinate(latitude + wave * 0.55, longitude + wave))
-        }
-
-        return points
+        return routeState.buildDemoRoute(currentLoc, destinationLoc, 180)
     }
 
     function coordinateLabel(coordinate) {
@@ -177,60 +251,11 @@ Page {
     }
 
     function translateTerm(text) {
-        var translations = {
-            "China": "中国",
-            "Beijing": "北京",
-            "Shanghai": "上海",
-            "Shenzhen": "深圳",
-            "Guangzhou": "广州",
-            "Hangzhou": "杭州",
-            "Chengdu": "成都",
-            "Xi'an": "西安",
-            "Xi’an": "西安",
-            "Wuhan": "武汉",
-            "Shaanxi": "陕西",
-            "Province": "省",
-            "Stadium": "体育场",
-            "Great Wall of China": "长城",
-            "Tiananmen Square": "天安门广场",
-            "Beijing South Railway Station": "北京南站",
-            "Beijing Capital International Airport": "首都国际机场",
-            "Shaanxi Province Stadium": "陕西省体育场",
-            "Xi'an City Wall": "西安城墙",
-            "Delhi NCR": "德里国家首都辖区",
-            "India": "印度",
-            "Unnamed road": "未命名道路",
-            "Pinned": "选点"
-        }
-
-        if (translations[text])
-            return translations[text]
-
-        var result = text
-        var replacements = [
-            ["Shaanxi Province", "陕西省"],
-            ["Xi'an", "西安"],
-            ["Xi’an", "西安"],
-            ["Beijing", "北京"],
-            ["Shanghai", "上海"],
-            ["China", "中国"],
-            ["Stadium", "体育场"],
-            ["Province", "省"]
-        ]
-
-        for (var index = 0; index < replacements.length; index++)
-            result = result.replace(replacements[index][0], replacements[index][1])
-        return result
+        return searchState.translateTerm(text)
     }
 
     function localizePlaceName(name) {
-        if (!name || !name.length)
-            return name
-
-        var parts = name.split(",")
-        for (var index = 0; index < parts.length; index++)
-            parts[index] = translateTerm(parts[index].trim())
-        return parts.join("，")
+        return searchState.localizePlaceName(name)
     }
 
     function destinationLabel() {
@@ -254,118 +279,98 @@ Page {
     }
 
     function bearingBetween(fromCoord, toCoord) {
-        var lat1 = fromCoord.latitude * Math.PI / 180
-        var lat2 = toCoord.latitude * Math.PI / 180
-        var dLon = (toCoord.longitude - fromCoord.longitude) * Math.PI / 180
-        var y = Math.sin(dLon) * Math.cos(lat2)
-        var x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon)
-        return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
+        return routeState.bearingBetween(fromCoord, toCoord)
+    }
+
+    function angleDeltaDegrees(firstAngle, secondAngle) {
+        return routeState.angleDeltaDegrees(firstAngle, secondAngle)
     }
 
     function currentBearing() {
-        if (routePath.length < 2)
-            return map.bearing
+        if (drivePath.length < 2)
+            return mapObject.bearing
 
-        var nextIndex = Math.min(routePath.length - 1, routeCursorIndex + Math.max(1, routePlaybackStep))
-        return bearingBetween(routePath[routeCursorIndex], routePath[nextIndex])
+        var nextIndex = Math.min(drivePath.length - 1, routeSegmentIndex + 1)
+        return bearingBetween(drivePath[routeSegmentIndex], drivePath[nextIndex])
+    }
+
+    function shortestAngleDelta(fromAngle, toAngle) {
+        return routeState.shortestAngleDelta(fromAngle, toAngle)
+    }
+
+    function smoothBearing(fromAngle, toAngle, factor) {
+        return routeState.smoothBearing(fromAngle, toAngle, factor)
+    }
+
+    function rebuildRouteDistanceCache() {
+        routeState.rebuildRouteDistanceCache(drivePath)
+    }
+
+    function coordinateAtRouteDistance(distanceMeters, updatePlaybackCursor) {
+        if (!drivePath.length)
+            return currentLoc
+        return routeState.coordinateAtRouteDistance(distanceMeters, updatePlaybackCursor)
+    }
+
+    function interpolateCoordinate(fromCoord, toCoord, ratio) {
+        return routeState.interpolateCoordinate(fromCoord, toCoord, ratio)
+    }
+
+    function densifySegment(segmentStart, segmentEnd, stepMeters, output) {
+        routeState.densifySegment(segmentStart, segmentEnd, stepMeters, output)
+    }
+
+    function resampleDrivePath(path) {
+        return routeState.resampleDrivePath(path)
+    }
+
+    function simplifyRenderPath(path, minPointDistanceMeters, keepTurnDegrees) {
+        return routeState.simplifyRenderPath(path, minPointDistanceMeters, keepTurnDegrees)
+    }
+
+    function coordinateAheadOfCurrent(distanceMetersAhead) {
+        if (!drivePath.length)
+            return currentLoc
+        return routeState.coordinateAheadOfCurrent(distanceMetersAhead, routeProgressDistanceMeters)
+    }
+
+    function updateCameraTargetCoordinate() {
+        cameraController.updateTargetCoordinate()
+    }
+
+    function tickCameraRig() {
+        cameraController.tickRig()
+    }
+
+    function playbackMetersPerTick() {
+        return playbackState.playbackMetersPerTick(vehicleCtrl ? vehicleCtrl.speed : 0,
+                                                    vehicleCtrl && vehicleCtrl.isDriving,
+                                                    playbackController.playbackIntervalMs,
+                                                    routeTotalDistanceMeters)
+    }
+
+    function updateFollowCamera(coordinate) {
+        cameraController.updateFollowTarget(coordinate)
     }
 
     function buildFallbackRouteSteps() {
-        return [
-            {
-                type: "depart",
-                modifier: "straight",
-                street: "已选起点",
-                distanceMiles: Math.max(0.1, routeDistanceMiles() * 0.28),
-                durationMinutes: 2
-            },
-            {
-                type: "turn",
-                modifier: "slight right",
-                street: "演示路线",
-                distanceMiles: Math.max(0.2, routeDistanceMiles() * 0.62),
-                durationMinutes: 7
-            },
-            {
-                type: "arrive",
-                modifier: "straight",
-                street: destinationLabel(),
-                distanceMiles: Math.max(0.05, routeDistanceMiles() * 0.1),
-                durationMinutes: 1
-            }
-        ]
+        return routeState.buildFallbackRouteSteps(routeDistanceMiles(), destinationLabel())
     }
 
-    function normalizeOsrmSteps(route) {
-        if (!route || !route.legs)
-            return []
-
-        var normalized = []
-
-        for (var legIndex = 0; legIndex < route.legs.length; legIndex++) {
-            var legSteps = route.legs[legIndex].steps || []
-
-            for (var stepIndex = 0; stepIndex < legSteps.length; stepIndex++) {
-                var step = legSteps[stepIndex]
-                var maneuver = step.maneuver || {}
-                normalized.push({
-                    type: maneuver.type || "",
-                    modifier: maneuver.modifier || "",
-                    street: step.name && step.name.length ? localizePlaceName(step.name) : "未命名道路",
-                    distanceMiles: (step.distance || 0) / 1609.344,
-                    durationMinutes: (step.duration || 0) / 60
-                })
-            }
-        }
-
-        return normalized
+    function coordinatePathFromPoints(pathPoints) {
+        return routeState.coordinatePathFromPoints(pathPoints)
     }
 
-    function osrmRouteToOption(route, index) {
-        var coordinates = route.geometry.coordinates
-        var convertedPath = []
+    function localizedStepsFromService(steps) {
+        return routeState.localizedStepsFromService(steps, localizePlaceName)
+    }
 
-        for (var pointIndex = 0; pointIndex < coordinates.length; pointIndex++)
-            convertedPath.push(QtPositioning.coordinate(coordinates[pointIndex][1], coordinates[pointIndex][0]))
-
-        return {
-            index: index,
-            title: index === 0 ? "推荐路线" : "路线 " + (index + 1),
-            path: convertedPath,
-            steps: normalizeOsrmSteps(route),
-            distanceMiles: (route.distance || 0) / 1609.344,
-            durationMinutes: (route.duration || 0) / 60,
-            score: 0
-        }
+    function serviceRouteToOption(routeData, index) {
+        return routeState.serviceRouteToOption(routeData, index, localizePlaceName)
     }
 
     function scoreRouteOptions(options) {
-        if (!options.length)
-            return options
-
-        var minDistance = options[0].distanceMiles
-        var minDuration = options[0].durationMinutes
-
-        for (var index = 1; index < options.length; index++) {
-            minDistance = Math.min(minDistance, options[index].distanceMiles)
-            minDuration = Math.min(minDuration, options[index].durationMinutes)
-        }
-
-        for (var optionIndex = 0; optionIndex < options.length; optionIndex++) {
-            var option = options[optionIndex]
-            if (routePreference === "shortest")
-                option.score = option.distanceMiles
-            else if (routePreference === "balanced")
-                option.score = option.durationMinutes / Math.max(1, minDuration) + option.distanceMiles / Math.max(0.1, minDistance)
-            else
-                option.score = option.durationMinutes
-        }
-
-        options.sort(function(left, right) { return left.score - right.score })
-        for (var sortedIndex = 0; sortedIndex < options.length; sortedIndex++)
-            options[sortedIndex].title = sortedIndex === 0 ? "推荐路线" : "备选路线 " + sortedIndex
-
-        return options
+        return routeState.scoreRouteOptions(options, routePreference)
     }
 
     function applyRouteOption(option, statusText) {
@@ -373,25 +378,33 @@ Page {
             return
 
         routePath = option.path
+        drivePath = resampleDrivePath(routePath)
+        routeRenderPath = simplifyRenderPath(routePath, 90, 10)
+        routeInteractionPath = simplifyRenderPath(routePath, 220, 18)
         routeSteps = option.steps || []
         routeCursorIndex = 0
+        routeSegmentIndex = 0
+        routeProgressDistanceMeters = 0
         updatePlaybackPace()
+        rebuildRouteDistanceCache()
         routeStatus = statusText
-        currentLocationMarker.coordinate = routePath[0]
+        currentLocationMarker.coordinate = drivePath.length ? drivePath[0] : routePath[0]
         currentLocationMarker.visible = true
-        startMarker.coordinate = currentLoc
-        destinationMarker.coordinate = routePath[routePath.length - 1]
+        startMarker.coordinate = option.snappedStart && option.snappedStart.isValid ? option.snappedStart : routePath[0]
+        destinationMarker.coordinate = option.snappedEnd && option.snappedEnd.isValid ? option.snappedEnd : routePath[routePath.length - 1]
         startMarker.visible = true
         destinationMarker.visible = true
-        simulateDrive.path = routePath
-        simulateDrive.index = 0
+        smoothedMapBearing = currentBearing()
+        cameraRigLat = currentLocationMarker.coordinate.latitude
+        cameraRigLng = currentLocationMarker.coordinate.longitude
+        cameraTargetCoordinate = currentLocationMarker.coordinate
 
         if (navCtrl)
-            navCtrl.prepareRoute(destinationLabel(), routePath.length, routeSteps)
+            navCtrl.prepareRoute(destinationLabel(), drivePath.length, routeSteps)
 
         fitRouteInView()
         routeHint = option.title + " · " + formatMiles(option.distanceMiles) + " · " + formatMinutes(option.durationMinutes)
-        animationTimer.restart()
+        playbackController.scheduleRoutePreview()
     }
 
     function selectRouteOption(index) {
@@ -403,60 +416,60 @@ Page {
     }
 
     function fitRouteInView() {
-        if (!routePath.length)
-            return
-
-        var minLat = routePath[0].latitude
-        var maxLat = routePath[0].latitude
-        var minLon = routePath[0].longitude
-        var maxLon = routePath[0].longitude
-
-        for (var index = 1; index < routePath.length; index++) {
-            minLat = Math.min(minLat, routePath[index].latitude)
-            maxLat = Math.max(maxLat, routePath[index].latitude)
-            minLon = Math.min(minLon, routePath[index].longitude)
-            maxLon = Math.max(maxLon, routePath[index].longitude)
-        }
-
-        map.center = QtPositioning.coordinate((minLat + maxLat) / 2, (minLon + maxLon) / 2)
-        var span = Math.max(maxLat - minLat, maxLon - minLon)
-        map.zoomLevel = span < 0.01 ? 15 : span < 0.03 ? 13.8 : span < 0.08 ? 12.5 : 11.3
-        map.bearing = -18
-        map.tilt = 38
-        cameraMode = "overview"
+        cameraController.fitRouteInView()
     }
 
     function updatePlaybackPace() {
-        if (!routePath.length) {
+        if (!drivePath.length) {
             routePlaybackStep = 1
             return
         }
 
-        var baseStep = Math.max(1, Math.floor(routePath.length / 650))
-        var speed = vehicleCtrl ? vehicleCtrl.speed : 0
+        var baseStep = Math.max(1, Math.floor(drivePath.length / 650))
+        var speed = vehicleCtrl && vehicleCtrl.isDriving ? vehicleCtrl.speed : 45
         var speedFactor = speed < 35 ? 1 : speed < 85 ? 2 : 3
         routePlaybackStep = baseStep * speedFactor
     }
 
-    function syncDrivePlayback() {
-        if (!routePath.length || !currentLocationMarker.visible)
-            return
-
-        if (!navCtrl || !vehicleCtrl || !vehicleCtrl.isDriving || vehicleCtrl.speed < 1) {
-            simulateDrive.stop()
+    function startNavigation() {
+        if (!routePath.length) {
+            routeHint = routeRequestInFlight ? "路线规划中，请稍候" : "请先搜索或点击地图选择目的地"
+            if (!routeRequestInFlight)
+                requestRoute()
             return
         }
 
-        if (!navCtrl.isNavigating)
+        if (navCtrl)
             navCtrl.startRoute()
 
-        updatePlaybackPace()
-        simulateDrive.path = routePath
+        routeHint = "导航已开始 · 跟随路线行驶"
+        startMarker.visible = false
+        currentLocationMarker.visible = true
         isRoutingStart = true
-        if (!simulateDrive.running) {
-            simulateDrive.index = Math.min(routeCursorIndex, routePath.length - 1)
-            simulateDrive.start()
-        }
+        setCameraMode("follow")
+        routeProgressDistanceMeters = Math.min(routeProgressDistanceMeters, routeTotalDistanceMeters)
+        playbackController.beginDrivePlayback()
+    }
+
+    function stopNavigation() {
+        playbackController.stopDrivePlayback()
+        isRoutingStart = false
+        cameraController.stopRig()
+        if (navCtrl)
+            navCtrl.stopRoute()
+        if (routePath.length)
+            routeHint = "导航已暂停 · 可继续或重算路线"
+    }
+
+    function toggleNavigation() {
+        if (navCtrl && navCtrl.isNavigating)
+            stopNavigation()
+        else
+            startNavigation()
+    }
+
+    function syncDrivePlayback() {
+        playbackController.syncDrivePlayback()
     }
 
     function requestRoute() {
@@ -464,183 +477,129 @@ Page {
         routeStatus = "loading"
         routeHint = "正在请求最优路线"
         routeRequestInFlight = true
-        fallbackRouteTimer.restart()
-
-        var xhr = new XMLHttpRequest()
-        var routeUrl = "https://router.project-osrm.org/route/v1/driving/"
-            + currentLoc.longitude + "," + currentLoc.latitude
-            + ";"
-            + destinationLoc.longitude + "," + destinationLoc.latitude
-            + "?overview=full&geometries=geojson&steps=true&alternatives=true"
-
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-
-            routeRequestInFlight = false
-
-            if (xhr.status < 200 || xhr.status >= 300) {
-                routeStatus = "network-error"
-                routeHint = "路线服务暂不可用"
-                console.log("Route request failed:", xhr.status, xhr.responseText)
-                return
-            }
-
-            var response = JSON.parse(xhr.responseText)
-            if (!response.routes || !response.routes.length) {
-                routeStatus = "empty"
-                routeHint = "未找到可用路线"
-                console.log("Route response did not contain a usable path")
-                return
-            }
-
-            var options = []
-            for (var index = 0; index < response.routes.length; index++) {
-                if (response.routes[index].geometry && response.routes[index].geometry.coordinates.length)
-                    options.push(osrmRouteToOption(response.routes[index], index))
-            }
-
-            if (!options.length) {
-                routeStatus = "empty"
-                routeHint = "未找到路线几何数据"
-                return
-            }
-
-            fallbackRouteTimer.stop()
-            routeOptions = scoreRouteOptions(options)
-            activeRouteIndex = 0
-            applyRouteOption(routeOptions[0], "ready")
+        playbackController.cancelFallbackRoute()
+        if (mapDataService) {
+            // 在线路线规划统一收口到 C++，QML 只处理交互和展示。
+            mapDataService.requestRoute(
+                currentLoc.latitude,
+                currentLoc.longitude,
+                destinationLoc.latitude,
+                destinationLoc.longitude
+            )
         }
-
-        xhr.open("GET", routeUrl)
-        xhr.send()
     }
 
-    function searchPlaces(query) {
-        if (!query || query.trim().length < 2) {
-            searchResults = []
-            showSearchResults = false
+    function parseCoordinateQuery(query) {
+        return searchState.parseCoordinateQuery(query)
+    }
+
+    function searchPlaces(query, committed) {
+        var normalizedQuery = query === undefined || query === null ? "" : String(query).trim()
+        if (normalizedQuery.length < 2) {
+            if (committed)
+                searchState.showQuickSuggestions("常用地点")
+            else {
+                searchState.searchResults = []
+                searchState.showSearchResults = false
+                searchState.searchHint = ""
+            }
             return
         }
 
-        searchStatus.text = "搜索中"
-        var xhr = new XMLHttpRequest()
-        var url = "https://photon.komoot.io/api/?limit=6&lang=en&q="
-            + encodeURIComponent(query)
-            + "&lat=" + currentLoc.latitude
-            + "&lon=" + currentLoc.longitude
-
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-
-            if (xhr.status < 200 || xhr.status >= 300) {
-                applyLocalSearchResults(query, "本地匹配")
-                return
-            }
-
-            var response = JSON.parse(xhr.responseText)
-            var results = []
-            var features = response.features || []
-            for (var index = 0; index < features.length; index++) {
-                var feature = features[index]
-                if (!feature.geometry || !feature.geometry.coordinates || feature.geometry.coordinates.length < 2)
-                    continue
-
-                var props = feature.properties || {}
-                results.push({
-                    name: placeDisplayName(props),
-                    latitude: Number(feature.geometry.coordinates[1]),
-                    longitude: Number(feature.geometry.coordinates[0])
-                })
-            }
-
-            var localResults = localSearchResults(query)
-            for (var localIndex = 0; localIndex < localResults.length && results.length < 6; localIndex++)
-                results.push(localResults[localIndex])
-
-            if (!results.length) {
-                applyLocalSearchResults(query, "未找到在线结果")
-                return
-            }
-
-            searchResults = results
-            showSearchResults = true
-            searchStatus.text = "共 " + results.length + " 条结果"
+        var coordinate = parseCoordinateQuery(normalizedQuery)
+        if (coordinate && committed) {
+            // 明确提交且识别为坐标时，直接设为目的地，不再走在线地点搜索。
+            searchState.searchResults = []
+            searchState.showSearchResults = false
+            searchState.searchHint = "已按坐标定位"
+            setDestinationFromCoordinate(coordinate, "坐标 " + coordinateLabel(coordinate))
+            return
         }
 
-        xhr.open("GET", url)
-        xhr.setRequestHeader("Accept", "application/json")
-        xhr.send()
-    }
-
-    function placeDisplayName(props) {
-        var pieces = []
-        if (props.name)
-            pieces.push(props.name)
-        if (props.city && props.city !== props.name)
-            pieces.push(props.city)
-        if (props.state && pieces.indexOf(props.state) < 0)
-            pieces.push(props.state)
-        if (props.country)
-            pieces.push(props.country)
-        return pieces.length ? localizePlaceName(pieces.join(", ")) : "搜索结果"
+        var localResults = localSearchResults(normalizedQuery)
+        searchResults = localResults
+        showSearchResults = localResults.length > 0
+        searchState.searchHint = localResults.length ? "本地匹配 · 在线补全中" : "在线搜索中"
+        if (mapDataService) {
+            mapDataService.searchPlaces(
+                normalizedQuery,
+                currentLoc.latitude,
+                currentLoc.longitude
+            )
+        } else if (!localResults.length) {
+            searchState.searchHint = "搜索服务不可用"
+        }
     }
 
     function localSearchResults(query) {
-        var needle = query.toLowerCase()
-        var matches = []
-        for (var index = 0; index < localPlaces.length; index++) {
-            if (localPlaces[index].name.toLowerCase().indexOf(needle) >= 0)
-                matches.push(localPlaces[index])
-        }
-        return matches
+        return searchState.localSearchResults(query)
     }
 
     function applyLocalSearchResults(query, message) {
-        var results = localSearchResults(query)
-        searchResults = results
-        showSearchResults = results.length > 0
-        searchStatus.text = results.length ? message : "无本地匹配"
+        searchState.applyLocalSearchResults(query, message)
+    }
+
+    function mergedSearchResults(onlineResults, query) {
+        var normalizedOnline = []
+        for (var index = 0; index < onlineResults.length; index++) {
+            normalizedOnline.push({
+                name: localizePlaceName(onlineResults[index].name || "搜索结果"),
+                latitude: Number(onlineResults[index].latitude),
+                longitude: Number(onlineResults[index].longitude),
+                sourceType: onlineResults[index].sourceType || "online",
+                sourceLabel: onlineResults[index].sourceLabel || "在线"
+            })
+        }
+        return searchState.mergeSearchResults(normalizedOnline, query, 8)
+    }
+
+    function chooseSearchPlace(place) {
+        if (!place)
+            return
+
+        navPanel.searchText = place.name
+        setDestinationFromCoordinate(QtPositioning.coordinate(place.latitude, place.longitude), place.name)
+    }
+
+    function setCurrentDestinationAsHome() {
+        searchState.setHomePlace({
+            name: destinationLabel(),
+            latitude: destinationLoc.latitude,
+            longitude: destinationLoc.longitude
+        })
+        searchHint = "已设为 Home"
+        searchState.showQuickSuggestions("常用地点已更新")
+    }
+
+    function setCurrentDestinationAsWork() {
+        searchState.setWorkPlace({
+            name: destinationLabel(),
+            latitude: destinationLoc.latitude,
+            longitude: destinationLoc.longitude
+        })
+        searchHint = "已设为 Work"
+        searchState.showQuickSuggestions("常用地点已更新")
+    }
+
+    function toggleCurrentDestinationFavorite() {
+        var added = searchState.toggleFavorite({
+            name: destinationLabel(),
+            latitude: destinationLoc.latitude,
+            longitude: destinationLoc.longitude
+        })
+        searchHint = added ? "已加入收藏" : "已取消收藏"
+        searchState.showQuickSuggestions("常用地点已更新")
     }
 
     function requestReverseDestinationName(coordinate) {
-        var xhr = new XMLHttpRequest()
-        var url = "https://photon.komoot.io/reverse?limit=1&lang=en&lat="
-            + coordinate.latitude + "&lon=" + coordinate.longitude
-
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState !== XMLHttpRequest.DONE)
-                return
-
-            if (xhr.status < 200 || xhr.status >= 300)
-                return
-
-            var response = JSON.parse(xhr.responseText)
-            if (response && response.features && response.features.length) {
-                destinationName = placeDisplayName(response.features[0].properties || {})
-                if (navCtrl && routePath.length)
-                    navCtrl.prepareRoute(destinationLabel(), routePath.length, routeSteps)
-            }
-        }
-
-        xhr.open("GET", url)
-        xhr.setRequestHeader("Accept", "application/json")
-        xhr.send()
+        if (mapDataService)
+            mapDataService.reverseGeocode(coordinate.latitude, coordinate.longitude)
     }
 
     Connections {
         target: vehicleCtrl
 
         function onIsDrivingChanged() {
-            if (!vehicleCtrl.isDriving) {
-                simulateDrive.stop()
-                isRoutingStart = false
-                if (navCtrl && navCtrl.isNavigating)
-                    navCtrl.stopRoute()
-            } else if (routePath.length && navCtrl && !navCtrl.isNavigating) {
-                navCtrl.startRoute()
-            }
             pageMap.syncDrivePlayback()
         }
 
@@ -654,12 +613,72 @@ Page {
 
         function onIsNavigatingChanged() {
             if (!navCtrl.isNavigating) {
-                simulateDrive.stop()
+                playbackController.stopDrivePlayback()
                 isRoutingStart = false
+                cameraController.stopRig()
             } else {
                 pageMap.setCameraMode("follow")
                 pageMap.syncDrivePlayback()
             }
+        }
+    }
+
+    Connections {
+        target: mapDataService
+
+        function onRouteReady(serviceRoutes) {
+            routeRequestInFlight = false
+            if (!serviceRoutes.length) {
+                routeStatus = "empty"
+                routeHint = "未找到可用路线"
+                return
+            }
+
+            var options = []
+            for (var index = 0; index < serviceRoutes.length; index++)
+                options.push(serviceRouteToOption(serviceRoutes[index], index))
+
+            playbackController.cancelFallbackRoute()
+            routeOptions = scoreRouteOptions(options)
+            activeRouteIndex = 0
+            applyRouteOption(routeOptions[0], "ready")
+        }
+
+        function onRouteFailed(message) {
+            routeRequestInFlight = false
+            routeStatus = "network-error"
+            routeHint = message && message.length ? message : "路线服务暂不可用"
+            playbackController.scheduleFallbackRoute()
+        }
+
+        function onSearchCompleted(query, onlineResults, success, message) {
+            var activeQuery = navPanel.searchText ? String(navPanel.searchText).trim() : ""
+            if (String(query) !== activeQuery)
+                return
+
+            if (!success) {
+                applyLocalSearchResults(query, message)
+                return
+            }
+
+            var results = mergedSearchResults(onlineResults, query)
+            if (!results.length) {
+                applyLocalSearchResults(query, message && message.length ? message : "未找到在线结果")
+                return
+            }
+
+            searchResults = results
+            showSearchResults = true
+            searchHint = "共 " + results.length + " 条结果"
+        }
+
+        function onReverseGeocodeResolved(lat, lng, displayName) {
+            if (Math.abs(destinationLoc.latitude - lat) > 0.000001 || Math.abs(destinationLoc.longitude - lng) > 0.000001)
+                return
+
+            destinationName = displayName
+            if (navCtrl && routePath.length)
+                navCtrl.prepareRoute(destinationLabel(), drivePath.length, routeSteps)
         }
     }
 
@@ -681,638 +700,180 @@ Page {
         }
     }
 
-    Map {
-        id: map
-
-        anchors.fill: parent
-        copyrightsVisible: false
-        center: currentLoc
-        zoomLevel: 12.8
-        bearing: -28
-        tilt: 38
-
-        onSupportedMapTypesChanged: selectCustomMapType()
-        Component.onCompleted: {
-            selectCustomMapType()
-            currentLocationMarker.visible = true
-        }
+    NavigationMapCanvas {
+        id: mapCanvas
+        tileSourceState: tileSourceState
+        tileSettingsObject: pageMap.tileSettingsObject
+        mapDataServiceObject: pageMap.mapDataServiceObject
+        adaptive: pageMap.adaptive
+        currentLoc: pageMap.currentLoc
+        routeOptions: pageMap.routeOptions
+        activeRouteIndex: pageMap.activeRouteIndex
+        routeRenderPath: pageMap.routeRenderPath
+        routeInteractionPath: pageMap.routeInteractionPath
+        mapViewportInteracting: pageMap.mapViewportInteracting
+        markerAnimationDuration: Math.max(70, playbackController.playbackIntervalMs + 18)
 
         Behavior on center {
+            enabled: pageMap.cameraMode !== "follow" && !pageMap.mapViewportInteracting
             CoordinateAnimation { duration: 180 }
         }
 
-        plugin: Plugin {
-            name: "osm"
-            PluginParameter {
-                name: "osm.mapping.custom.host"
-                value: Style.isDark
-                    ? "https://a.basemaps.cartocdn.com/dark_all/%z/%x/%y.png"
-                    : "https://tile.openstreetmap.org/%z/%x/%y.png"
-            }
-            PluginParameter {
-                name: "osm.mapping.providersrepository.disabled"
-                value: true
-            }
-            PluginParameter {
-                name: "osm.useragent"
-                value: "TeslaDashboardUI/1.0"
-            }
-            PluginParameter {
-                name: "osm.geocoding.host"
-                value: "https://nominatim.openstreetmap.org"
-            }
-        }
-
-        MapPolyline {
-            visible: routeOptions.length > 1 && activeRouteIndex !== 1
-            line.color: "#607A8791"
-            line.width: adaptive.width(7)
-            path: routeOptions.length > 1 ? routeOptions[1].path : []
-        }
-
-        MapPolyline {
-            visible: routeOptions.length > 2 && activeRouteIndex !== 2
-            line.color: "#50616B72"
-            line.width: adaptive.width(6)
-            path: routeOptions.length > 2 ? routeOptions[2].path : []
-        }
-
-        MapPolyline {
-            line.color: "#4033E4FF"
-            line.width: adaptive.width(13)
-            path: routePath
-        }
-
-        MapPolyline {
-            line.color: "#11E3F3"
-            line.width: adaptive.width(5)
-            path: routePath
-        }
-
-        MapQuickItem {
-            id: currentLocationMarker
-
-            coordinate: currentLoc
-            visible: false
-            z: 3
-            anchorPoint.x: sourceItem.width / 2
-            anchorPoint.y: sourceItem.height / 2
-
-            onCoordinateChanged: {
-                if (cameraMode === "follow" && isRoutingStart) {
-                    map.center = coordinate
-                    map.bearing = currentBearing()
-                    map.zoomLevel = followZoomLevel
-                    map.tilt = 58
-                }
-            }
-
-            sourceItem: Item {
-                width: adaptive.average(58)
-                height: adaptive.average(58)
-
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width
-                    height: parent.height
-                    radius: width / 2
-                    color: "#22F2187A"
-                }
-
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width * 0.72
-                    height: parent.height * 0.72
-                    radius: width / 2
-                    color: "#55FF2A96"
-                }
-
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width * 0.36
-                    height: parent.height * 0.36
-                    radius: width / 2
-                    color: "#EA0F7A"
-                    border.width: 2
-                    border.color: "#FFD0E8"
-                }
-            }
-
-            Behavior on coordinate {
-                CoordinateAnimation {
-                    duration: Math.max(220, simulateDrive.interval - 20)
-                }
-            }
-        }
-
-        MapQuickItem {
-            id: destinationMarker
-
-            visible: false
-            z: 2
-            anchorPoint.x: sourceItem.width / 2
-            anchorPoint.y: sourceItem.height / 2
-
-            sourceItem: Item {
-                width: adaptive.average(20)
-                height: adaptive.average(20)
-
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width
-                    height: parent.height
-                    radius: width / 2
-                    color: "#BB11E3F3"
-                }
-
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width * 0.45
-                    height: parent.height * 0.45
-                    radius: width / 2
-                    color: "#FFFFFF"
-                }
-            }
-        }
-
-        MapQuickItem {
-            id: startMarker
-
-            visible: false
-            z: 2
-            anchorPoint.x: sourceItem.width / 2
-            anchorPoint.y: sourceItem.height / 2
-
-            sourceItem: Item {
-                width: adaptive.average(14)
-                height: adaptive.average(14)
-
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width
-                    height: parent.height
-                    radius: width / 2
-                    color: "#FFFFFFFF"
-                    border.width: 1
-                    border.color: "#11E3F3"
-                }
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            cursorShape: Qt.CrossCursor
-            z: 1
-
-            onPressed: function(mouse) {
-                mapDragActive = false
-                mapDragLastPoint = Qt.point(mouse.x, mouse.y)
-            }
-
-            onPositionChanged: function(mouse) {
-                if (!(mouse.buttons & (Qt.LeftButton | Qt.RightButton)))
-                    return
-
-                var currentPoint = Qt.point(mouse.x, mouse.y)
-                var dx = currentPoint.x - mapDragLastPoint.x
-                var dy = currentPoint.y - mapDragLastPoint.y
-                if (Math.abs(dx) + Math.abs(dy) < 3)
-                    return
-
-                var before = map.toCoordinate(mapDragLastPoint, false)
-                var after = map.toCoordinate(currentPoint, false)
-                if (before.isValid && after.isValid) {
-                    map.center = QtPositioning.coordinate(
-                        map.center.latitude + before.latitude - after.latitude,
-                        map.center.longitude + before.longitude - after.longitude
-                    )
-                    cameraMode = "free"
-                    mapDragActive = true
-                    mapDragLastPoint = currentPoint
-                }
-            }
-
-            onWheel: function(wheel) {
-                var zoomDelta = wheel.angleDelta.y > 0 ? 0.5 : -0.5
-                map.zoomLevel = Math.max(3, Math.min(20, map.zoomLevel + zoomDelta))
-                cameraMode = "free"
-                wheel.accepted = true
-            }
-
-            onClicked: function(mouse) {
-                if (mapDragActive)
-                    return
-
-                var coordinate = map.toCoordinate(Qt.point(mouse.x, mouse.y), false)
-                if (!coordinate.isValid)
-                    return
-
-                if (mouse.button === Qt.RightButton) {
-                    setStartFromCoordinate(coordinate)
-                } else {
-                    setDestinationFromCoordinate(coordinate, "选点 " + coordinateLabel(coordinate))
-                }
-            }
-        }
+        onViewportInteractionBegan: function() { pageMap.beginViewportInteraction() }
+        onViewportInteractionEnded: function() { pageMap.endViewportInteraction() }
+        onWheelZoomRequested: function(screenPoint, zoomDelta) { pageMap.queueWheelZoom(screenPoint, zoomDelta) }
+        onStartCoordinateRequested: function(coordinate) { pageMap.setStartFromCoordinate(coordinate) }
+        onDestinationCoordinateRequested: function(coordinate, label) { pageMap.setDestinationFromCoordinate(coordinate, label) }
+        onFollowTargetCoordinateChanged: function(coordinate) { pageMap.updateFollowCamera(coordinate) }
     }
 
-    Rectangle {
+    RoutePanel {
         id: navPanel
-        visible: navPanelVisible
+        visible: pageMap.navPanelVisible
         anchors.left: parent.left
         anchors.top: parent.top
-        anchors.leftMargin: 18
-        anchors.topMargin: 62
-        width: Math.min(376, parent.width * 0.42) * navPanelScale
-        height: Math.min(484, parent.height - 150) * navPanelScale
-        radius: 8
-        color: Style.isDark ? "#E6111111" : "#EFFFFFFF"
-        border.width: 1
-        border.color: Style.isDark ? "#303030" : "#D8D8D8"
-        z: 20
-        clip: true
-
-        Behavior on width {
-            NumberAnimation { duration: 160; easing.type: Easing.InOutQuad }
-        }
-
-        Behavior on height {
-            NumberAnimation { duration: 160; easing.type: Easing.InOutQuad }
-        }
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 14
-            spacing: Math.max(7, 10 * navPanelScale)
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                Text {
-                    Layout.fillWidth: true
-                    text: "导航"
-                    elide: Text.ElideRight
-                    font.family: Style.fontFamily
-                    font.bold: Font.Bold
-                    font.pixelSize: 14
-                    color: Style.isDark ? Style.white : Style.black10
-                }
-
-                Button {
-                    text: "-"
-                    implicitWidth: 34
-                    implicitHeight: 28
-                    onClicked: adjustNavPanelScale(-0.08)
-                }
-
-                Button {
-                    text: "+"
-                    implicitWidth: 34
-                    implicitHeight: 28
-                    onClicked: adjustNavPanelScale(0.08)
-                }
-
-                Button {
-                    text: "x"
-                    implicitWidth: 34
-                    implicitHeight: 28
-                    onClicked: navPanelVisible = false
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                TextField {
-                    id: searchBox
-                    Layout.fillWidth: true
-                    implicitHeight: 38
-                    placeholderText: "搜索目的地"
-                    color: Style.isDark ? Style.white : Style.black10
-                    selectedTextColor: Style.white
-                    selectionColor: "#2E78FF"
-                    font.family: Style.fontFamily
-                    font.pixelSize: 13
-                    onAccepted: searchPlaces(text)
-                    background: Rectangle {
-                        radius: 8
-                        color: Style.isDark ? "#252525" : "#F3F4F6"
-                        border.width: 1
-                        border.color: searchBox.activeFocus ? "#11E3F3" : (Style.isDark ? "#343434" : "#D6D9DE")
-                    }
-                }
-
-                Button {
-                    text: "搜索"
-                    implicitWidth: 58
-                    implicitHeight: 38
-                    onClicked: searchPlaces(searchBox.text)
-                }
-            }
-
-            Text {
-                id: searchStatus
-                Layout.fillWidth: true
-                text: routeRequestInFlight ? "在线规划中" : routeHint
-                elide: Text.ElideRight
-                font.family: Style.fontFamily
-                font.pixelSize: 12
-                color: Style.black20
-            }
-
-            ListView {
-                Layout.fillWidth: true
-                Layout.preferredHeight: showSearchResults ? 134 : 0
-                visible: showSearchResults
-                clip: true
-                model: searchResults
-                spacing: 6
-
-                delegate: Rectangle {
-                    width: ListView.view.width
-                    height: 38
-                    radius: 8
-                    color: Style.isDark ? "#252525" : "#F5F6F8"
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        text: modelData.name
-                        elide: Text.ElideRight
-                        font.family: Style.fontFamily
-                        font.pixelSize: 12
-                        color: Style.isDark ? Style.white : Style.black10
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
-                            searchBox.text = modelData.name
-                            setDestinationFromCoordinate(QtPositioning.coordinate(modelData.latitude, modelData.longitude), modelData.name)
-                        }
-                    }
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                Button {
-                    text: "最快"
-                    checkable: true
-                    checked: routePreference === "fastest"
-                    implicitHeight: 32
-                    Layout.fillWidth: true
-                    onClicked: {
-                        routePreference = "fastest"
-                        if (routeOptions.length) {
-                            routeOptions = scoreRouteOptions(routeOptions)
-                            selectRouteOption(0)
-                        }
-                    }
-                }
-
-                Button {
-                    text: "最短"
-                    checkable: true
-                    checked: routePreference === "shortest"
-                    implicitHeight: 32
-                    Layout.fillWidth: true
-                    onClicked: {
-                        routePreference = "shortest"
-                        if (routeOptions.length) {
-                            routeOptions = scoreRouteOptions(routeOptions)
-                            selectRouteOption(0)
-                        }
-                    }
-                }
-
-                Button {
-                    text: "均衡"
-                    checkable: true
-                    checked: routePreference === "balanced"
-                    implicitHeight: 32
-                    Layout.fillWidth: true
-                    onClicked: {
-                        routePreference = "balanced"
-                        if (routeOptions.length) {
-                            routeOptions = scoreRouteOptions(routeOptions)
-                            selectRouteOption(0)
-                        }
-                    }
-                }
-            }
-
-            ListView {
-                id: routeList
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(142, routeOptions.length * 46)
-                visible: routeOptions.length > 0
-                clip: true
-                model: routeOptions
-                spacing: 7
-
-                delegate: Rectangle {
-                    width: ListView.view.width
-                    height: 40
-                    radius: 8
-                    color: index === activeRouteIndex
-                        ? "#2D7F75"
-                        : (Style.isDark ? "#242424" : "#F4F5F7")
-                    border.width: 1
-                    border.color: index === activeRouteIndex ? "#11E3F3" : "transparent"
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        spacing: 8
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: modelData.title
-                            elide: Text.ElideRight
-                            font.family: Style.fontFamily
-                            font.bold: Font.Bold
-                            font.pixelSize: 13
-                            color: Style.white
-                        }
-
-                        Text {
-                            text: formatMiles(modelData.distanceMiles) + "  " + formatMinutes(modelData.durationMinutes)
-                            font.family: Style.fontFamily
-                            font.pixelSize: 12
-                            color: index === activeRouteIndex ? "#D8F6FF" : Style.black20
-                        }
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: selectRouteOption(index)
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: Style.isDark ? "#303030" : "#D8D8D8"
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: navCtrl ? navCtrl.destination : destinationLabel()
-                elide: Text.ElideRight
-                maximumLineCount: 2
-                wrapMode: Text.Wrap
-                font.family: Style.fontFamily
-                font.bold: Font.Bold
-                font.pixelSize: 15
-                color: Style.isDark ? Style.white : Style.black10
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: navCtrl ? navCtrl.nextManeuver : "路线尚未准备"
-                elide: Text.ElideRight
-                maximumLineCount: 2
-                wrapMode: Text.Wrap
-                font.family: Style.fontFamily
-                font.pixelSize: 13
-                color: "#11E3F3"
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
-
-                Text {
-                    Layout.fillWidth: true
-                    text: navCtrl ? formatMiles(navCtrl.distanceToNext) + " 后" : ""
-                    font.family: Style.fontFamily
-                    font.pixelSize: 12
-                    color: Style.black20
-                }
-
-                Text {
-                    text: navCtrl ? navCtrl.etaMinutes + " 分钟到达" : ""
-                    font.family: Style.fontFamily
-                    font.pixelSize: 12
-                    color: Style.black20
-                }
-            }
-
-            ProgressBar {
-                Layout.fillWidth: true
-                from: 0
-                to: 1
-                value: navCtrl ? navCtrl.routeProgress : 0
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                Button {
-                    text: "重算"
-                    Layout.fillWidth: true
-                    implicitHeight: 34
-                    onClicked: requestRoute()
-                }
-
-                Button {
-                    text: cameraMode === "follow" ? "总览" : "跟随"
-                    Layout.fillWidth: true
-                    implicitHeight: 34
-                    onClicked: setCameraMode(cameraMode === "follow" ? "overview" : "follow")
-                }
-
-                Button {
-                    text: useDevicePosition ? "GPS 已开" : "GPS"
-                    Layout.fillWidth: true
-                    implicitHeight: 34
-                    onClicked: {
-                        useDevicePosition = !useDevicePosition
-                        liveLocationStatus = useDevicePosition ? "GPS 等待中" : "手动定位 " + coordinateLabel(currentLoc)
-                    }
-                }
-
-                Button {
-                    text: "北京"
-                    Layout.fillWidth: true
-                    implicitHeight: 34
-                    onClicked: resetToDemoRoute()
-                }
+        anchors.leftMargin: 28
+        anchors.topMargin: 88
+        panelScale: pageMap.navPanelScale
+        compactMode: pageMap.navPanelCompactMode
+        routePreference: pageMap.routePreference
+        routeOptions: pageMap.routeOptions
+        activeRouteIndex: pageMap.activeRouteIndex
+        routeStatus: pageMap.routeStatus
+        routeHint: pageMap.routeHint
+        searchHint: pageMap.searchHint
+        routeRequestInFlight: pageMap.routeRequestInFlight
+        navCtrl: pageMap.navigationController
+        searchState: pageMap.searchStateObject
+        searchResults: pageMap.searchResults
+        favoritePlace: ({
+                            name: pageMap.destinationLabel(),
+                            latitude: pageMap.destinationLoc.latitude,
+                            longitude: pageMap.destinationLoc.longitude
+                        })
+        destinationLabel: pageMap.destinationLabel()
+        showSearchResults: pageMap.showSearchResults
+        cameraMode: pageMap.cameraMode
+        useDevicePosition: pageMap.useDevicePosition
+        onSearchRequested: function(query, committed) { pageMap.searchPlaces(query, committed) }
+        onPlaceSelected: function(place) { pageMap.chooseSearchPlace(place) }
+        onHomeRequested: function() { pageMap.setCurrentDestinationAsHome() }
+        onWorkRequested: function() { pageMap.setCurrentDestinationAsWork() }
+        onFavoriteRequested: function() { pageMap.toggleCurrentDestinationFavorite() }
+        onRoutePreferenceSelected: function(preference) {
+            pageMap.routePreference = preference
+            if (pageMap.routeOptions.length) {
+                pageMap.routeOptions = pageMap.scoreRouteOptions(pageMap.routeOptions)
+                pageMap.selectRouteOption(0)
             }
         }
+        onRouteOptionSelected: function(index) { pageMap.selectRouteOption(index) }
+        onNavigationToggled: function() { pageMap.toggleNavigation() }
+        onRecalculateRequested: function() { pageMap.requestRoute() }
+        onCameraModeToggleRequested: function() { pageMap.setCameraMode(pageMap.cameraMode === "follow" ? "overview" : "follow") }
+        onGpsToggleRequested: function() {
+            pageMap.useDevicePosition = !pageMap.useDevicePosition
+            pageMap.liveLocationStatus = pageMap.useDevicePosition ? "GPS 等待中" : "手动定位 " + pageMap.coordinateLabel(pageMap.currentLoc)
+        }
+        onDemoRequested: function() { pageMap.resetToDemoRoute() }
+        onHideRequested: function() { pageMap.navPanelVisible = false }
+        onCompactModeToggled: function(compact) { pageMap.navPanelCompactMode = compact }
     }
 
-    Button {
+    DesktopButton {
         id: navPanelRestore
         visible: !navPanelVisible
         z: 21
-        text: "导航"
+        text: "Navigation"
         anchors.left: parent.left
         anchors.top: parent.top
-        anchors.leftMargin: 18
-        anchors.topMargin: 62
-        implicitWidth: 72
-        implicitHeight: 34
+        anchors.leftMargin: 28
+        anchors.topMargin: 82
+        implicitWidth: 80
+        implicitHeight: 32
+        tone: "ghost"
+        compact: true
         onClicked: navPanelVisible = true
-
-        background: Rectangle {
-            radius: 8
-            color: Style.isDark ? "#E6111111" : "#EFFFFFFF"
-            border.width: 1
-            border.color: "#11E3F3"
-        }
-
-        contentItem: Text {
-            text: navPanelRestore.text
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            font.family: Style.fontFamily
-            font.bold: Font.Bold
-            font.pixelSize: 13
-            color: "#D8F6FF"
-        }
     }
 
     Rectangle {
+        visible: navPanelVisible && routeStatus === "idle" && routeOptions.length === 0 && navPanel.searchText.length < 1
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.rightMargin: 28
-        anchors.topMargin: 64
-        radius: 8
-        color: "#8A000000"
+        anchors.rightMargin: 24
+        anchors.topMargin: 70
+        radius: 999
+        color: "#74000000"
         border.width: 1
-        border.color: "#333333"
+        border.color: "#2E414A"
         z: 10
-        implicitWidth: routeEditHint.implicitWidth + 20
+        implicitWidth: routeEditHint.implicitWidth + 22
         implicitHeight: routeEditHint.implicitHeight + 10
 
         Text {
             id: routeEditHint
             anchors.centerIn: parent
-            text: "拖拽平移  滚轮缩放  左键终点  右键起点"
+            text: "点击地图开始规划"
             color: "#D8F6FF"
             font.family: Style.fontFamily
-            font.pixelSize: 12
+            font.pixelSize: 11
         }
     }
 
     Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.rightMargin: 28
-        anchors.topMargin: 104
+        anchors.rightMargin: 24
+        anchors.topMargin: navPanelVisible && routeStatus === "idle" && routeOptions.length === 0 && navPanel.searchText.length < 1
+            ? 106
+            : 70
+        radius: 999
+        color: tileSourceState.tileSourceColor()
+        border.width: 1
+        border.color: tileSourceState.tileSourceBorderColor()
+        z: 10
+        implicitWidth: tileSourceRow.implicitWidth + 20
+        implicitHeight: 28
+
+        RowLayout {
+            id: tileSourceRow
+            anchors.centerIn: parent
+            spacing: 7
+
+            Rectangle {
+                width: 7
+                height: 7
+                radius: 4
+                color: tileSourceState.tileSourceBorderColor()
+            }
+
+            Text {
+                text: mapTileSettings ? mapTileSettings.tileSourceLabel : "瓦片源未知"
+                font.family: Style.fontFamily
+                font.bold: Font.DemiBold
+                font.pixelSize: 10
+                color: "#E8F7FF"
+            }
+
+            Text {
+                visible: mapTileSettings && mapTileSettings.tileSourceDetail.length > 0
+                text: mapTileSettings ? mapTileSettings.tileSourceDetail : ""
+                elide: Text.ElideRight
+                maximumLineCount: 1
+                Layout.maximumWidth: 180
+                font.family: Style.fontFamily
+                font.pixelSize: 9
+                color: "#AFC4CE"
+            }
+        }
+    }
+
+    Rectangle {
+        visible: showDebugControls
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.rightMargin: 24
+        anchors.topMargin: 108
         radius: 8
         color: "#8A000000"
         border.width: 1
@@ -1325,8 +886,8 @@ Page {
             id: coordinateReadout
             anchors.centerIn: parent
             text: "车辆 " + coordinateLabel(currentLocationMarker.coordinate)
-                + "  中心 " + coordinateLabel(map.center)
-                + "  缩放 " + map.zoomLevel.toFixed(1)
+                + "  中心 " + coordinateLabel(mapObject.center)
+                + "  缩放 " + mapObject.zoomLevel.toFixed(1)
             color: "#F2F2F2"
             font.family: Style.fontFamily
             font.pixelSize: 12
@@ -1353,119 +914,14 @@ Page {
             color: "#F2F2F2"
             font.family: Style.fontFamily
             font.pixelSize: 13
-            text: "路线: " + routeStatus + "  方案: " + routeOptions.length + "  点数: " + routePath.length
+            text: "路线: " + routeStatus
+                + "  方案: " + routeOptions.length
+                + "  原始/行驶点: " + routePath.length + "/" + drivePath.length
         }
     }
 
-    Timer {
-        id: animationTimer
-
-        interval: 800
-        onTriggered: {
-            if (!routePath.length)
-                return
-
-            startMarker.visible = false
-            currentLocationMarker.visible = true
-            isRoutingStart = true
-            simulateDrive.path = routePath
-            simulateDrive.index = routeCursorIndex
-
-            if (vehicleCtrl && vehicleCtrl.isDriving)
-                routeStartAnimation.running = true
-            syncDrivePlayback()
-        }
-    }
-
-    Timer {
-        id: simulateDrive
-
-        property var path
-        property int index
-
-        interval: vehicleCtrl ? Math.max(140, 760 - Math.round(vehicleCtrl.speed * 4)) : 360
-        repeat: true
-        onTriggered: {
-            if (!vehicleCtrl || !vehicleCtrl.isDriving || vehicleCtrl.speed < 1) {
-                simulateDrive.stop()
-                return
-            }
-
-            updatePlaybackPace()
-            if (path && path.length > index) {
-                updateLiveCoordinate(path[index], "Route")
-                routeCursorIndex = index
-                if (navCtrl && path.length > 1)
-                    navCtrl.updateRouteProgress(index / (path.length - 1))
-                index += routePlaybackStep
-            } else {
-                simulateDrive.stop()
-                isRoutingStart = false
-                if (navCtrl)
-                    navCtrl.markArrived()
-            }
-        }
-    }
-
-    Timer {
-        id: fallbackRouteTimer
-        interval: 3500
-        repeat: false
-        onTriggered: {
-            if (!routePath.length) {
-                routeRequestInFlight = false
-                routeStatus = "fallback"
-                routeHint = "使用本地演示路线"
-                var fallbackPath = buildDemoRoute()
-                routePath = fallbackPath
-                var fallbackOption = {
-                    index: 0,
-                    title: "离线预览",
-                    path: fallbackPath,
-                    steps: buildFallbackRouteSteps(),
-                    distanceMiles: routeDistanceMiles(),
-                    durationMinutes: 10,
-                    score: 0
-                }
-                routeOptions = [fallbackOption]
-                activeRouteIndex = 0
-                applyRouteOption(fallbackOption, "fallback")
-            }
-        }
-    }
-
-    Timer {
-        id: searchDebounce
-        interval: 450
-        repeat: false
-        onTriggered: searchPlaces(searchBox.text)
-    }
-
-    Connections {
-        target: searchBox
-        function onTextChanged() {
-            if (searchBox.activeFocus)
-                searchDebounce.restart()
-        }
-    }
-
-    ParallelAnimation {
-        id: routeStartAnimation
-
-        NumberAnimation {
-            target: map
-            property: "zoomLevel"
-            duration: 1200
-            from: map.zoomLevel
-            to: followZoomLevel
-        }
-
-        NumberAnimation {
-            target: map
-            property: "tilt"
-            duration: 1200
-            from: map.tilt
-            to: 58
-        }
+    NavigationPlaybackController {
+        id: playbackController
+        pageMap: pageMap
     }
 }

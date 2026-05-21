@@ -35,9 +35,13 @@ public:
     double  carY()           const { return m_carY; }
 
 public slots:
+    // 开始路线播放/导航状态；真正的路线几何由 QML 地图层持有。
     void startRoute();
+    // 暂停导航状态，但保留当前路线，便于继续或重算。
     void stopRoute();
+    // 接收地图规划完成后的目的地、路径点数和 OSRM steps，生成 HMI 展示所需的导航提示。
     void prepareRoute(const QString &destination, int pointCount, const QVariantList &steps = QVariantList());
+    // 由模拟行驶定时器传入 0~1 进度，用于刷新下一步指令和 ETA。
     void updateRouteProgress(double progress);
     void markArrived();
 
@@ -74,6 +78,7 @@ private:
     double m_totalRouteMiles = 0.0;
     double m_totalRouteMinutes = 12.0;
 
+    // 将 OSRM step 转成更适合 UI 展示的中文道路指令。
     void loadRouteSteps(const QVariantList &steps);
     void applyRouteStepForProgress(double progress);
 };

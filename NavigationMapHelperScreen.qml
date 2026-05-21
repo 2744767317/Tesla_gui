@@ -1,8 +1,8 @@
 import QtQuick 2.9
-import QtLocation 5.6
+import QtLocation 6.10
 import QtQml 2.3
 import QtQuick.Controls 2.5
-import QtPositioning 5.6
+import QtPositioning
 
 
 Rectangle{

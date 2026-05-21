@@ -9,6 +9,7 @@ QString formatStreetName(const QString &street)
     return street.trimmed().isEmpty() ? QStringLiteral("未命名道路") : street.trimmed();
 }
 
+// OSRM 的 maneuver/type/modifier 是英文枚举，这里统一映射成 UI 图标语义。
 QString iconForManeuver(const QString &type, const QString &modifier)
 {
     if (type == QLatin1String("arrive"))
@@ -42,6 +43,7 @@ QString buildInstruction(const QString &type, const QString &modifier, const QSt
 {
     const QString prettyStreet = formatStreetName(street);
 
+    // 导航提示只做轻量中文化，不追求完整导航语音播报，先满足 HMI 预览。
     if (type == QLatin1String("depart"))
         return QStringLiteral("驶入%1").arg(prettyStreet);
     if (type == QLatin1String("arrive"))
@@ -121,6 +123,7 @@ void NavigationController::stopRoute()
 
 void NavigationController::prepareRoute(const QString &destination, int pointCount, const QVariantList &steps)
 {
+    // 每次规划成功都重置进度，避免上一条路线的进度影响新目的地。
     m_destination = destination.isEmpty() ? QStringLiteral("地图目的地") : destination;
     m_pointCount = qMax(0, pointCount);
     m_routeProgress = 0.0;
@@ -209,6 +212,7 @@ void NavigationController::loadRouteSteps(const QVariantList &steps)
     if (m_routeSteps.isEmpty())
         return;
 
+    // 进度区间按每段距离占总距离的比例划分，用于播放时定位当前导航指令。
     m_totalRouteMiles = totalDistanceMiles;
     m_totalRouteMinutes = totalDurationMinutes > 0.0 ? totalDurationMinutes : 12.0;
 
@@ -234,6 +238,7 @@ void NavigationController::loadRouteSteps(const QVariantList &steps)
 void NavigationController::applyRouteStepForProgress(double progress)
 {
     if (m_routeSteps.isEmpty()) {
+        // 没有 OSRM steps 时使用兜底提示，保证导航面板仍有可读状态。
         m_etaMinutes = qMax(0, static_cast<int>(qCeil(12.0 * (1.0 - progress))));
         m_distanceToNext = qMax(0.0, (1.0 - progress) * 0.5);
 

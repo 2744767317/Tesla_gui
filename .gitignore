@@ -44,6 +44,10 @@ CMakeLists.txt.user*
 
 # Qt build directories
 build/
+build-*/
+cmake-build-*/
+Desktop_Qt_*/
+*.dSYM/
 *.Debug/
 *.Release/
 
@@ -74,14 +78,21 @@ build/
 
 # Python byte code
 *.pyc
+__pycache__/
 
 # Binaries
 *.dll
 *.exe
 Tesla_Dashboard_UI
+map_data_service_tests
 
 # Log files
 *.log
+*.qmlc
+*.jsc
+*.metatypes
+*.rcc
+compile_commands.json
 
 # Clangd cache
 .qtc_clangd/
@@ -89,3 +100,6 @@ Tesla_Dashboard_UI
 # IDE settings
 .vscode/
 .idea/
+
+# Runtime caches
+.cache/

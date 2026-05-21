@@ -19,6 +19,7 @@ QtObject {
     readonly property color black50: "#D0D1D2"
     readonly property color black60: "#E0E0E0"
     readonly property color black80: "#F0F0F0"
+    readonly property color grey: black20
     readonly property color white: "#FFFFFF"
     readonly property string fontFamily: nunitoSans.name
 

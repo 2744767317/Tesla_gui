@@ -14,8 +14,14 @@ ApplicationWindow {
     maximumWidth: 1920
     minimumWidth: 800
     visible: true
-    title: qsTr("Tesla Model 3")
-    property bool fusionPanelVisible: true
+    title: qsTr("Tesla Dashboard")
+    property bool fusionPanelVisible: false
+    property bool autowarePanelVisible: false
+    readonly property var autowareBridgeObject: autowareBridge
+    readonly property var adControllerObject: adController
+    readonly property int desktopPaneWidth: Math.max(216, Math.min(236, root.width * 0.17))
+    readonly property int footerHeight: footerLayout.height
+    readonly property int headerHeight: headerLayout.height
 
     Connections {
         target: vehicleCtrl
@@ -25,6 +31,14 @@ ApplicationWindow {
                 navCtrl.stopRoute()
         }
     }
+
+    Connections {
+        target: autowareBridge
+        function onConnectedChanged() {
+            console.log("Autoware connected:", autowareBridge.connected)
+        }
+    }
+
     onWidthChanged: {
         if(adaptive)
             adaptive.updateWindowWidth(root.width)
@@ -34,6 +48,7 @@ ApplicationWindow {
         if(adaptive)
             adaptive.updateWindowHeight(root.height)
     }
+
     property var adaptive: new Responsive.AdaptiveLayoutManager(root.width,root.height, root.width,root.height)
 
     FontLoader {
@@ -60,7 +75,8 @@ ApplicationWindow {
         z: 99
         anchors.left: parent.left
         anchors.top: headerLayout.bottom
-        anchors.leftMargin: 18
+        anchors.leftMargin: 12
+        anchors.topMargin: 4
     }
 
     RowLayout {
@@ -68,16 +84,86 @@ ApplicationWindow {
         visible: Style.mapAreaVisible
         spacing: 0
         anchors.fill: parent
+
         Item {
-            Layout.preferredWidth: 620
+            id: desktopPane
+            Layout.preferredWidth: root.desktopPaneWidth
             Layout.fillHeight: true
+
             Image {
-                anchors.centerIn: parent
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: -20
                 source: Style.isDark ? "qrc:/icons/light/sidebar.png" : "qrc:/icons/dark/sidebar-light.png"
+                opacity: 0.04
+                scale: 0.76
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                color: Style.isDark ? Style.alphaColor(Style.black, 0.18) : Style.alphaColor(Style.white, 0.14)
+            }
+
+            Rectangle {
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: 1
+                color: Style.isDark ? "#242A31" : "#DDE3EA"
+            }
+
+            DriveOverviewCard {
+                id: driveOverview
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: root.footerHeight + 22
+                width: Math.min(206, parent.width - 20)
+                height: root.autowarePanelVisible
+                    ? 224
+                    : Math.min(202, Math.max(190, parent.height - root.headerHeight - root.footerHeight - 180))
+                hmiPanelActive: root.autowarePanelVisible
+                onHmiRequested: root.autowarePanelVisible = !root.autowarePanelVisible
+                z: 3
+            }
+
+            AutowareStatusPanel {
+                id: autowarePanel
+                visible: root.autowarePanelVisible
+                width: driveOverview.width
+                height: 96
+                anchors.horizontalCenter: driveOverview.horizontalCenter
+                anchors.bottom: driveOverview.top
+                anchors.bottomMargin: 12
+                autowareBridge: root.autowareBridgeObject
+                adController: root.adControllerObject
+                z: 4
+            }
+
+            DesktopButton {
+                id: connectBtn
+                visible: false
+                width: 102
+                height: 30
+                anchors.right: autowarePanel.right
+                anchors.bottom: autowarePanel.top
+                anchors.bottomMargin: 10
+                text: autowareBridge && autowareBridge.connected ? "Disconnect" : "Connect"
+                tone: autowareBridge && autowareBridge.connected ? "danger" : "accent"
+                compact: true
+                onClicked: {
+                    if (autowareBridge) {
+                        if (autowareBridge.connected) {
+                            autowareBridge.disconnectFromAutoware()
+                        } else {
+                            autowareBridge.connectToAutoware()
+                        }
+                    }
+                }
             }
         }
 
         NavigationMapHelperScreen {
+            id: mapDesktop
             Layout.fillWidth: true
             Layout.fillHeight: true
             runMenuAnimation: true
@@ -95,21 +181,23 @@ ApplicationWindow {
         z: 98
         expanded: root.fusionPanelVisible
         anchors.left: parent.left
+        anchors.leftMargin: 18
         anchors.right: parent.right
+        anchors.rightMargin: 18
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: footerLayout.height
+        anchors.bottomMargin: footerLayout.height + 12
     }
 
     Button {
         id: fusionToggle
         z: 100
-        width: 154
+        width: 128
         height: 38
-        text: root.fusionPanelVisible ? "Status panel  v" : "Status panel  ^"
+        text: root.fusionPanelVisible ? "Dock  v" : "Dock  ^"
         anchors.right: parent.right
-        anchors.rightMargin: 28
+        anchors.rightMargin: 24
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: footerLayout.height + (root.fusionPanelVisible ? fusionPanel.height + 10 : 12)
+        anchors.bottomMargin: footerLayout.height + (root.fusionPanelVisible ? fusionPanel.height + 22 : 18)
         onClicked: root.fusionPanelVisible = !root.fusionPanelVisible
 
         Behavior on anchors.bottomMargin {
@@ -118,9 +206,9 @@ ApplicationWindow {
 
         background: Rectangle {
             radius: 8
-            color: root.fusionPanelVisible ? "#2A8C6A" : "#E67E22"
+            color: root.fusionPanelVisible ? "#2A8C6A" : "#20262D"
             border.width: 1
-            border.color: Style.alphaColor(Style.white, 0.45)
+            border.color: root.fusionPanelVisible ? "#49D3A8" : "#3A424B"
         }
 
         contentItem: Text {

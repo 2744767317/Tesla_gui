@@ -1,4 +1,4 @@
-QT += quick concurrent
+QT += quick location positioning network
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -9,13 +9,23 @@ SOURCES += \
         VehicleController.cpp \
         MediaController.cpp \
         BluetoothController.cpp \
-        NavigationController.cpp
+        NavigationController.cpp \
+        AutowareBridge.cpp \
+        ADController.cpp \
+        MapTileSettings.cpp \
+        MapDataService.cpp \
+        SearchStorage.cpp
 
 HEADERS += \
         VehicleController.h \
         MediaController.h \
         BluetoothController.h \
-        NavigationController.h
+        NavigationController.h \
+        AutowareBridge.h \
+        ADController.h \
+        MapTileSettings.h \
+        MapDataService.h \
+        SearchStorage.h
 
 RESOURCES += qml.qrc
 

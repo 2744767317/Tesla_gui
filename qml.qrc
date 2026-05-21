@@ -105,7 +105,19 @@
         <file>Components/LaunchPadControl.qml</file>
         <file>Components/VehicleQuickControls.qml</file>
         <file>Components/SystemFusionPanel.qml</file>
+        <file>Components/DriveOverviewCard.qml</file>
+        <file>Components/DesktopButton.qml</file>
         <file>Components/LauncherButton.qml</file>
+        <file>Components/AutowareStatusPanel.qml</file>
+        <file>Components/SearchPanel.qml</file>
+        <file>Components/RoutePanel.qml</file>
+        <file>MapRouteState.qml</file>
+        <file>MapSearchState.qml</file>
+        <file>MapTileSourceState.qml</file>
+        <file>MapCameraController.qml</file>
+        <file>RoutePlaybackState.qml</file>
+        <file>NavigationMapCanvas.qml</file>
+        <file>NavigationPlaybackController.qml</file>
         <file>NavigationMapScreen.qml</file>
         <file>NavigationMapHelperScreen.qml</file>
         <file>LayoutManager.js</file>

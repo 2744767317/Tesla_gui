@@ -1,6 +1,6 @@
-# Tesla Dashboard UI using QT QML
+# Autoware HMI - Tesla Style Dashboard
 
-A stunning Tesla Model 3 inspired dashboard UI built with Qt Quick/QML, featuring navigation, media control, vehicle status, and more.
+A Tesla Model 3 inspired dashboard UI built with Qt Quick/QML, now integrated with Autoware for autonomous driving visualization and control. Features navigation, media control, vehicle status, and ADAS functionality.
 
 ## Features
 
@@ -64,19 +64,23 @@ Tesla_gui/
 
 ## Requirements
 
-- **Qt Version**: Qt 6.11.0 or later
-- **Qt Modules Required**:
+- **Qt Version**: Qt 5.15 or Qt 6.x
+- **Qt C++ modules required by qmake**:
   - Qt Quick
+  - Qt Location
+  - Qt Positioning
+  - Qt Network
+- **Qt QML modules required at runtime**:
   - Qt Quick Controls 2
   - Qt Location
   - Qt Positioning
-  - Qt Concurrent
+  - Qt.labs.settings
 
 ## Installation
 
 ### Step 1: Install Qt
 Download and install Qt from [qt.io](https://www.qt.io/download) with the following components:
-- Qt 6.11.0 (or later)
+- Qt 5.15 or Qt 6.x
 - Qt Quick Controls 2
 - Qt Location
 - Qt Positioning
@@ -89,14 +93,17 @@ cd Tesla_gui
 
 ### Step 3: Build Project
 ```bash
-mkdir build && cd build
-qmake ..
-make
+./tools/build_qmake.sh
 ```
 
 ### Step 4: Run Application
 ```bash
-./Tesla_Dashboard_UI
+./build/qmake/Tesla_Dashboard_UI
+```
+
+### Run Tests
+```bash
+./tools/test_qmake.sh
 ```
 
 ## Usage
@@ -123,10 +130,18 @@ Edit `Style.qml` to customize:
 - Various color definitions
 
 ### Map Settings
-Edit `NavigationMapScreen.qml` to change:
-- Map plugin (OpenStreetMap by default)
-- Initial location coordinates
-- Map zoom level and bearing
+Runtime map/navigation configuration:
+
+```bash
+export TESLA_MAP_STYLE=carto-voyager
+export TESLA_MAP_TILE_HOST="https://basemaps.cartocdn.com/rastertiles/voyager"
+export TESLA_MAP_MBTILES="/path/to/china.mbtiles"
+export TESLA_GEOCODE_PROVIDER=nominatim
+export TESLA_GEOCODE_HOST=http://127.0.0.1:8080
+export TESLA_OSRM_HOST=http://127.0.0.1:5000
+```
+
+Public OSM/Nominatim is only a development fallback. Qt Location expects `TESLA_MAP_TILE_HOST` as a base tile URL; the app strips legacy `/%z/%x/%y.png` suffixes automatically. For reliable China POI search and route/map consistency, use local or dedicated geocoding, tiles, and OSRM built from the same OSM extract.
 
 ## Technologies Used
 
@@ -135,6 +150,8 @@ Edit `NavigationMapScreen.qml` to change:
 - **Qt Location** - Map and navigation services
 - **Qt Positioning** - Geolocation services
 - **OpenStreetMap** - Map tile provider
+- **Autoware** - Autonomous driving platform (compatible)
+- **ROS2** - Robot Operating System (planned)
 
 ## Contributing
 

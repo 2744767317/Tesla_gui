@@ -7,7 +7,7 @@ static const QStringList kCallers = {
 
 BluetoothController::BluetoothController(QObject *parent) : QObject(parent)
 {
-    m_availableDevices = {
+    m_availableDevices = QStringList{
         "iPhone 15 Pro — Alex",
         "Samsung S24 Ultra",
         "Pixel 8 — Sarah",

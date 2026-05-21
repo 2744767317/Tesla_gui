@@ -4,9 +4,9 @@
 
 VehicleController::VehicleController(QObject *parent) : QObject(parent)
 {
-    m_timer.setInterval(100); // 10 Hz
+    m_timer.setInterval(100); // 10 Hz，用于模拟车辆状态连续变化。
     connect(&m_timer, &QTimer::timeout, this, &VehicleController::onTick);
-    m_timer.start(); // always ticking so idle RPM/temp warm-up works
+    m_timer.start(); // 即使驻车也持续 tick，保证仪表温度/RPM 状态自然变化。
 }
 
 void VehicleController::toggleDriving()
@@ -60,9 +60,9 @@ void VehicleController::onTick()
 {
     m_tickCount++;
 
-    // --- Speed ---
+    // 速度采用简单缓动模型，避免 UI 数值瞬间跳变。
     double speedDiff = m_targetSpeed - m_speed;
-    double accel = m_isDriving ? 0.8 : 1.5; // decel faster
+    double accel = m_isDriving ? 0.8 : 1.5; // 松开驾驶状态时减速更快。
     if (qAbs(speedDiff) < accel) {
         m_speed = m_targetSpeed;
     } else {
@@ -71,7 +71,7 @@ void VehicleController::onTick()
     m_speed = qBound(0.0, m_speed, 220.0);
     emit speedChanged();
 
-    // --- RPM ---  correlate with speed + gear
+    // RPM 与速度/挡位弱关联，只用于 HMI 仪表模拟，不代表真实动力学。
     updateGear();
     double rpmTarget = 800.0;
     if (m_isDriving || m_speed > 0) {
@@ -83,18 +83,18 @@ void VehicleController::onTick()
     m_rpm += rpmDiff * 0.15;
     emit rpmChanged();
 
-    // --- Engine Temp --- warm up, stabilise at 90°C while driving
+    // 温度缓慢趋近目标值，让左侧状态卡看起来更像连续车辆数据。
     double tempTarget = m_isDriving ? 90.0 : (m_speed > 0 ? 85.0 : 20.0);
     m_engineTemp += (tempTarget - m_engineTemp) * 0.002;
     emit engineTempChanged();
 
-    // --- Fuel --- drain slowly while driving
+    // 行驶时缓慢掉电/掉油，作为 HMI 视觉演示数据源。
     if (m_isDriving && m_tickCount % 50 == 0) { // every 5s
         m_fuel = qMax(0.0, m_fuel - 0.1);
         emit fuelChanged();
     }
 
-    // --- Warnings ---
+    // 告警保持轻量模拟，后续接 Autoware/车辆总线时可替换为真实信号。
     bool warnEng = (m_engineTemp > 110.0);
     if (warnEng != m_warningEngine) { m_warningEngine = warnEng; emit warningEngineChanged(); }
 
